@@ -7,7 +7,7 @@ function _header()
 		+' | <a href="#clear" onclick="localStorage.clear(); return false">очистить localStorage</a></small>'
 }
 function _loading() { if (!_loading.ck) _loading.ck=1; document.body.innerHTML = _header()+'<br>Загрузка данных... '+(_loading.ck++) }
-function _error(e){ return _header()+'<br>Ошибка :-( '+e }
+function _error(e){ console.error(e); return _header()+'<br>Ошибка :-( '+e; }
 
 function onHashChanged()
 {
@@ -82,8 +82,46 @@ try {
 	}
 	st += '</table>'
 
-	st += '<h3>Сыгранные матчи</h3>'
 	_ = await getMatches(a.claims['P527']) // состоит из
+
+	if (_.crosstable)
+	{
+		st += '<h3>Шахматка игр</h3>'
+		st += '<table class="t">'
+		st += '<tr><th>Дома \\ На выезде<th>И<th>В<th>Н<th>П<th>МЗ<th>МП<th>РМ<th>О<th>Поз'
+		for (let i=0; i<_.results.length; i++)
+			st += '<th>'+_.results[i].position
+		for (let i=0; i<_.results.length; i++)
+		{
+			let Q1 = _.results[i].Q, team = await wikidata(Q1)
+			st += '<tr>'
+			st += '<td><a href="'+_sitelink(team)+'">'+_label(team)+'</a>'+_wd(Q1)
+			st += '<td>'+_.results[i].total
+			st += '<td>'+_.results[i].wins
+			st += '<td>'+_.results[i].draws
+			st += '<td>'+_.results[i].fails
+			st += '<td>'+_.results[i].goals
+			st += '<td>'+_.results[i].skips
+			st += '<td>'+_.results[i].delta
+			st += '<td>'+_.results[i].points
+			st += '<th>'+_.results[i].position
+			for (let j=0; j<_.results.length; j++)
+			if (i == j)
+				st += '<td>—'
+			else
+			{
+				let Q2 = _.results[j].Q
+				const a = _.crosstable[Q1][Q2].score.split(':')
+				let cl = 'yellow'
+				if (a[0]>a[1]) cl = 'green'
+				if (a[0]<a[1]) cl = 'red'
+				st += '<td class="'+cl+'">'+a.join(':')
+			}
+		}
+		st += '</table>'
+	}
+
+	st += '<h3>Сыгранные матчи</h3>'
 	st += '<table class="t">'
 	st += '<tr><th>Дата<th>Команды<th>Счёт'
 	for (let i=0; i<_.length; i++)
@@ -94,6 +132,8 @@ try {
 		st += '<td>'+_[i].score
 	}
 	st += '</table>'
+
+
 } catch(e){ st = _error(e) }
 	document.body.innerHTML = st
 }
@@ -128,19 +168,46 @@ async function getTeams(a)
 }
 async function getMatches(a)
 {
-	let res = []
+	let res = []; res.crosstable = {}; res.results = {}
 	if (!a) return res
 	for (let i=0; i<a.length; i++)
 	{
 		let _ = await wikidata(a[i].mainsnak.datavalue.value.id)
 		let t1=0, t2=1, teams = _.claims['P1923']
 		if (_P(3831, teams[0]) == 'Q24633216') { t1=1; t2=0 }
-		_.score = _P(1351, teams[t1])+':'+_P(1351, teams[t2])
-		_.timestamp = new Date(_P(585, _)).getTime()
+		let s = [_P(1351, teams[t1]), _P(1351, teams[t2])]
+		_.score = s.join(':')
+		_.date = _P(585, _)
 		res.push(_)
+
+		t1 = _value(teams[t1])
+		t2 = _value(teams[t2])
+		if (!res.crosstable[t1]) res.crosstable[t1] = {}
+		res.crosstable[t1][t2] = {score: _.score, date: _.date}
+
+		if (!res.results[t1]) res.results[t1]={total:0, wins:0, draws:0, fails:0, goals:0, skips:0}
+		if (!res.results[t2]) res.results[t2]={total:0, wins:0, draws:0, fails:0, goals:0, skips:0}
+		res.results[t1].total++
+		res.results[t2].total++
+		res.results[t1].goals += s[0]; res.results[t2].skips += s[0]
+		res.results[t2].goals += s[1]; res.results[t1].skips += s[1]
+		if (s[0] > s[1]) { res.results[t1].wins++;  res.results[t2].fails++; }
+		if (s[0] < s[1]) { res.results[t1].fails++; res.results[t2].wins++;  }
+		if (s[0] ==s[1]) { res.results[t1].draws++; res.results[t2].draws++; }
 	}
 	// сортируем по дате
-	res.sort((a,b)=>a.timestamp-b.timestamp)
+	res.sort((a,b)=>a.date.localeCompare(b.date))
+	// сортируем результаты
+	let Q, x, y, _ = []
+	for (Q in res.results)
+	_.push({...res.results[Q], Q,
+		points: x=res.results[Q].wins * 3 + res.results[Q].draws,
+		delta:  y=res.results[Q].goals - res.results[Q].skips,
+		sort:   x * 10000 + y,
+	})
+	_.sort((a,b)=>b.sort-a.sort)
+	for (let i=0;i<_.length;i++) _[i].position = i+1
+	res.results = _
 	return res
 }
 function _P(P, a)
@@ -151,6 +218,11 @@ function _P(P, a)
 	if (!a['P'+P]) return ''
 	a = a['P'+P]
 	if (a.length) a = a[0]
+	return _value(a)
+}
+function _value(a)
+{
+	if (!a) return ''
 	if (a.mainsnak) a = a.mainsnak
 	if (a.datatype == 'quantity')
 		return parseInt(a.datavalue.value.amount)
@@ -163,7 +235,7 @@ function _P(P, a)
 function _t(x)
 {
 	let t = new Date(x.replace(/^\+/, ''))
-	return _z(t.getDate())+'.'+_z(t.getMonth()+1)+'.'+t.getFullYear()
+	return t.getFullYear()+'-'+_z(t.getMonth()+1)+'-'+_z(t.getDate())
 }
 function _z(x) { return x<10?'0'+x:x }
 
