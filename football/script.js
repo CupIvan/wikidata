@@ -69,16 +69,16 @@ try {
 	for (let i=0,w,d,g,s; i<_.length; i++)
 	{
 		st += '<tr>'
-		st += '<td>'+_P(1352, _[i])
+		st += '<td class="r">'+_P(1352, _[i]) // position
 		st += '<td><a href="'+_sitelink(_[i].entity)+'">'+_label(_[i].entity)+'</a>'+_wd(_[i].entity.id)
-		st += '<td>'+_P(1350, _[i]) // total
-		st += '<td>'+(w=_P(1355, _[i])) // wins
-		st += '<td>'+(d=_P(1357, _[i])) // draws
-		st += '<td>'+_P(1356, _[i]) // fails
-		st += '<td>'+(g=_P(1351, _[i])) // goals
-		st += '<td>'+(s=_P(1359, _[i])) // skips
-		st += '<td>'+(g-s) // delta
-		st += '<td>'+(w*3+d) // points
+		st += '<td class="c">'+_P(1350, _[i]) // total
+		st += '<td class="c">'+(w=_P(1355, _[i])) // wins
+		st += '<td class="c">'+(d=_P(1357, _[i])) // draws
+		st += '<td class="c">'+_P(1356, _[i]) // fails
+		st += '<td class="c">'+(g=_P(1351, _[i])) // goals
+		st += '<td class="c">'+(s=_P(1359, _[i])) // skips
+		st += '<td class="r">'+(g-s>0?'+'+(g-s):g-s) // delta
+		st += '<td class="c">'+(w*3+d) // points
 	}
 	st += '</table>'
 
@@ -144,9 +144,9 @@ async function getNavPrevNext(a)
 	st += '<h2><a href="#?tournament='+entity.id+'">'+_label(entity)+'</a>'+_wd(entity.id)+'</h2>'
 	st += '<ul>'
 	entity = await wikidata(_P(155, a.claims['P3450'][0]))
-	st += '<li><a href="#?competition='+entity.id+'">'+_label(entity)+'</a>'+_wd(entity.id)
+	st += '<li><a href="#?competition='+entity.id+'">'+(_label(entity)||'предыдущий не заполнен')+'</a>'+_wd(entity.id)
 	entity = await wikidata(_P(156, a.claims['P3450'][0]))
-	st += '<li><a href="#?competition='+entity.id+'">'+_label(entity)+'</a>'+_wd(entity.id)
+	st += '<li><a href="#?competition='+entity.id+'">'+(_label(entity)||'следующий не заполнен')+'</a>'+_wd(entity.id)
 	st += '</ul>'
 	return st
 }
@@ -157,12 +157,13 @@ async function getTeams(a)
 	for (let i=0; i<a.length; i++)
 	{
 		a[i].entity = await wikidata(a[i].mainsnak.datavalue.value.id)
+		a[i].label  = _label(a[i].entity)
 		let x = 'ru'
 		res.push(a[i])
 	}
 	// сортируем по названию
 	res.sort((a,b)=>{
-		a.entity.labels.ru.value.localeCompare(b.entity.labels.ru.value)
+		a.label.localeCompare(b.label)
 	})
 	return res
 }
@@ -262,13 +263,13 @@ async function wikidata_search(Q)
 		.then(_=>_.json()).then(_=>_.entities[Q])
 }
 
-function _wd(Q) { return '<sup><a href="https://www.wikidata.org/wiki/'+Q+'">[wd]</a></sup>'; }
+function _wd(Q) { return !Q?'':'<sup><a href="https://www.wikidata.org/wiki/'+Q+'">[wd]</a></sup>'; }
 function _label(a)
 {
 	if (!a.labels) return ''
 	let x = 'ru'
 	if (!a.labels[x]) x = 'en'
-	return a.labels[x].value
+	return a.labels[x].value||''
 }
 function _sitelink(a)
 {
@@ -276,5 +277,5 @@ function _sitelink(a)
 	let x = 'ruwiki'
 	if (!a.sitelinks[x]) x = 'enwiki'
 	if (!a.sitelinks[x]) x = 'frwiki'
-	return a.sitelinks[x].url
+	return a.sitelinks[x] ? a.sitelinks[x].url : ''
 }
