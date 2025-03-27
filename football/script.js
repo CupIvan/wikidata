@@ -3,9 +3,10 @@ window.addEventListener('hashchange', onHashChanged)
 
 function _header()
 {
-	return '<small><a href="#">Главная</a> | <a href="" onclick="localStorage.clear()">очистить localStorage</a></small>'
+	return '<small><a href="#">Главная</a>'
+		+' | <a href="#clear" onclick="localStorage.clear(); return false">очистить localStorage</a></small>'
 }
-function _start() { document.body.innerHTML = _header()+'<br>Загрузка данных...' }
+function _loading() { if (!_loading.ck) _loading.ck=1; document.body.innerHTML = _header()+'<br>Загрузка данных... '+(_loading.ck++) }
 function _error(e){ return _header()+'<br>Ошибка :-( '+e }
 
 function onHashChanged()
@@ -22,8 +23,6 @@ function loadMain() { document.body.innerHTML = document.body.restore }
 
 async function loadTournament(Q)
 {
-	_start()
-
 	let st = '', _
 try {
 	let a = await wikidata(Q)
@@ -55,13 +54,12 @@ async function getCompetitions(a)
 
 async function loadCompetition(Q)
 {
-	_start()
-
 	let st = '', _
 try {
 	let a = await wikidata(Q)
 
 	st += _header()
+	st += await getNavPrevNext(a)
 	st += '<h1><a href="'+_sitelink(a)+'">'+_label(a)+'</a>'+_wd(Q)+'</h1>'
 
 	st += '<h3>Турнирная таблица</h3>'
@@ -72,7 +70,7 @@ try {
 	{
 		st += '<tr>'
 		st += '<td>'+_P(1352, _[i])
-		st += '<td><a href="#team='+_[i].entity.id+'">'+_label(_[i].entity)+'</a>'+_wd(_[i].entity.id)
+		st += '<td><a href="'+_sitelink(_[i].entity)+'">'+_label(_[i].entity)+'</a>'+_wd(_[i].entity.id)
 		st += '<td>'+_P(1350, _[i]) // total
 		st += '<td>'+(w=_P(1355, _[i])) // wins
 		st += '<td>'+(d=_P(1357, _[i])) // draws
@@ -98,6 +96,19 @@ try {
 	st += '</table>'
 } catch(e){ st = _error(e) }
 	document.body.innerHTML = st
+}
+async function getNavPrevNext(a)
+{
+	let st = ''
+	let entity = await wikidata(_P(3450, a)) // parent
+	st += '<h2><a href="#?tournament='+entity.id+'">'+_label(entity)+'</a>'+_wd(entity.id)+'</h2>'
+	st += '<ul>'
+	entity = await wikidata(_P(155, a.claims['P3450'][0]))
+	st += '<li><a href="#?competition='+entity.id+'">'+_label(entity)+'</a>'+_wd(entity.id)
+	entity = await wikidata(_P(156, a.claims['P3450'][0]))
+	st += '<li><a href="#?competition='+entity.id+'">'+_label(entity)+'</a>'+_wd(entity.id)
+	st += '</ul>'
+	return st
 }
 async function getTeams(a)
 {
@@ -160,11 +171,13 @@ function _z(x) { return x<10?'0'+x:x }
 
 async function wikidata(Q)
 {
+	if (!Q) return {}
 	let st = localStorage.getItem(Q)
 	let a; try { a = JSON.parse(st) } catch(e){}
 	if (!a) a = {}
 	if (new Date().getTime() - a.timestamp < 4*3600*1000)
 		return a
+	_loading()
 	a = await wikidata_search(Q)
 	a.timestamp = new Date().getTime()
 	localStorage.setItem(Q, JSON.stringify(a))
@@ -180,12 +193,14 @@ async function wikidata_search(Q)
 function _wd(Q) { return '<sup><a href="https://www.wikidata.org/wiki/'+Q+'">[wd]</a></sup>'; }
 function _label(a)
 {
+	if (!a.labels) return ''
 	let x = 'ru'
 	if (!a.labels[x]) x = 'en'
 	return a.labels[x].value
 }
 function _sitelink(a)
 {
+	if (!a.sitelinks) return ''
 	let x = 'ruwiki'
 	if (!a.sitelinks[x]) x = 'enwiki'
 	if (!a.sitelinks[x]) x = 'frwiki'
