@@ -6,7 +6,7 @@ function _header()
 	return '<small><a href="#">Главная</a>'
 		+' | <a href="#clear" onclick="'
 		+'localStorage.clear(); console.log("localStorage: CLEAR"); return false'
-		+'">очистить localStorage</a></small>'
+		+'">очистить localStorage ('+localStorage.length+')</a></small>'
 }
 function _loading() { if (!_loading.ck) _loading.ck=1; document.body.innerHTML = _header()+'<br>Загрузка данных... '+(_loading.ck++) }
 function _error(e){ console.error(e); return _header()+'<br>Ошибка :-( '+e; }
@@ -129,12 +129,11 @@ try {
 	for (let i=0; i<_.length; i++)
 	{
 		st += '<tr>'
-		st += '<td>'+_P(585, _[i])
+		st += '<td>'+_P(585, _[i])+_wd(_[i].id)
 		st += '<td>'+_[i].labels.ru.value
-		st += '<td>'+_[i].score
+		st += '<td class="c">'+_[i].score
 	}
 	st += '</table>'
-
 
 } catch(e){ st = _error(e) }
 	document.body.innerHTML = st
@@ -259,8 +258,16 @@ async function wikidata(Q)
 	if (new Date().getTime() - a.timestamp < _rnd(4,100)*3600*1000) // в кеше от 4 до 100 часов
 		return a
 	_loading()
+
 	a = await wikidata_search(Q)
 	a.timestamp = new Date().getTime()
+	{ // почистим ненужные языки, чтобы уменьшить объект
+		let k, i
+		if (a[k='labels'])       for (i in a[k]) if (!['ru','en','fr'].includes(i)) delete a[k][i]
+		if (a[k='descriptions']) for (i in a[k]) if (!['ru','en','fr'].includes(i)) delete a[k][i]
+		if (a[k='sitelinks'])    for (i in a[k]) if (!['ruwiki','enwiki','frwiki'].includes(i)) delete a[k][i]
+		delete a.aliases
+	}
 	try {
 		localStorage.setItem(Q, JSON.stringify(a))
 	} catch(e) {
