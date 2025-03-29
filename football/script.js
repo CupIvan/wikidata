@@ -4,7 +4,9 @@ window.addEventListener('hashchange', onHashChanged)
 function _header()
 {
 	return '<small><a href="#">Главная</a>'
-		+' | <a href="#clear" onclick="localStorage.clear(); return false">очистить localStorage</a></small>'
+		+' | <a href="#clear" onclick="'
+		+'localStorage.clear(); console.log("localStorage: CLEAR"); return false'
+		+'">очистить localStorage</a></small>'
 }
 function _loading() { if (!_loading.ck) _loading.ck=1; document.body.innerHTML = _header()+'<br>Загрузка данных... '+(_loading.ck++) }
 function _error(e){ console.error(e); return _header()+'<br>Ошибка :-( '+e; }
@@ -242,18 +244,44 @@ function _z(x) { return x<10?'0'+x:x }
 
 
 
+function _rnd(from, to)
+{
+	if (!to) { to = from; from = 0; }
+	return Math.floor(Math.random() * (to - from) + from)
+}
 async function wikidata(Q)
 {
 	if (!Q) return {}
 	let st = localStorage.getItem(Q)
 	let a; try { a = JSON.parse(st) } catch(e){}
 	if (!a) a = {}
-	if (new Date().getTime() - a.timestamp < 4*3600*1000)
+	else
+	if (new Date().getTime() - a.timestamp < _rnd(4,100)*3600*1000) // в кеше от 4 до 100 часов
 		return a
 	_loading()
 	a = await wikidata_search(Q)
 	a.timestamp = new Date().getTime()
-	localStorage.setItem(Q, JSON.stringify(a))
+	try {
+		localStorage.setItem(Q, JSON.stringify(a))
+	} catch(e) {
+		if (e.name != 'QuotaExceededError') throw e
+		// пробуем удалить старые записи
+		let a = []
+		for (let i = 0; i < localStorage.length; i++)
+		{
+			const Q = localStorage.key(i)
+			const _ = JSON.parse(localStorage.getItem(Q)) || {}
+			a.push({Q, timestamp: _.timestamp||0})
+		}
+		a.sort((x,y)=>x.timestamp-y.timestamp)
+		const deleted = []
+		for (let i = 0; i < 20 && i < a.length; i++) // удаляем 20 старых записей
+		{
+			localStorage.removeItem(a[i].Q)
+			deleted.push(a[i].Q)
+		}
+		console.log('localStorage: REMOVE '+deleted.join(', '))
+	}
 	return a
 }
 
