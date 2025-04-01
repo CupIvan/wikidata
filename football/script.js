@@ -1,11 +1,11 @@
-window.addEventListener('load', _=>onHashChanged(document.body.restore=document.body.innerHTML))
+window.addEventListener('load', _=>onHashChanged(document.body.restore = document.body.innerHTML))
 window.addEventListener('hashchange', onHashChanged)
 
 function _header()
 {
 	return '<small><a href="#">Главная</a>'
 		+' | <a href="#clear" onclick="'
-		+'localStorage.clear(); console.log("localStorage: CLEAR"); return false'
+		+'localStorage.clear(); console.log(\'localStorage: CLEAR\'); return false'
 		+'">очистить localStorage ('+localStorage.length+')</a></small>'
 }
 function _loading() { if (!_loading.ck) _loading.ck=1; document.body.innerHTML = _header()+'<br>Загрузка данных... '+(_loading.ck++) }
@@ -135,7 +135,7 @@ try {
 	}
 	st += '</table>'
 
-	year = _P(585, _[0]).replace(/-.+/, '')
+	if (_[0])  year = _P(585, _[0]).replace(/-.+/, '')
 	if (!year) year = _label(a).replace(/.*?(\d+).*/, '$1')
 
 } catch(e){ st = _error(e) }
@@ -249,11 +249,11 @@ async function getTeams(a)
 async function getMatches(a)
 {
 	let res = []; res.crosstable = {}; res.results = {}
-	if (!a) return res
-	for (let i=0; i<a.length; i++)
+
+	function add(_)
 	{
-		let _ = await wikidata(a[i].mainsnak.datavalue.value.id)
 		let t1=0, t2=1, teams = _.claims['P1923']
+		if (!teams) return
 		if (_P(3831, teams[0]) == 'Q24633216') { t1=1; t2=0 }
 		let s = [_P(1351, teams[t1]), _P(1351, teams[t2])]
 		_.score = s.join(':')
@@ -275,6 +275,18 @@ async function getMatches(a)
 		if (s[0] < s[1]) { res.results[t1].fails++; res.results[t2].wins++;  }
 		if (s[0] ==s[1]) { res.results[t1].draws++; res.results[t2].draws++; }
 	}
+
+	if (!a) return res
+	for (let i=0; i<a.length; i++)
+	{
+		let _ = await wikidata(_value(a[i]))
+		if (_P(31, _) == 'Q58092637') // тур группового этапа
+			for (let j=0, b=_PP('527', _); j<b.length; j++)
+				add(await wikidata(b[j]))
+		else // Q133729849 - футбольный матч
+			add(_)
+	}
+
 	// сортируем по дате
 	res.sort((a,b)=>a.date.localeCompare(b.date))
 	// сортируем результаты
@@ -289,106 +301,4 @@ async function getMatches(a)
 	for (let i=0;i<_.length;i++) _[i].position = i+1
 	res.results = _
 	return res
-}
-function _P(P, a)
-{
-	if (!a) return ''
-	if (a.qualifiers) a = a.qualifiers
-	if (a.claims) a = a.claims
-	if (!a['P'+P]) return ''
-	a = a['P'+P]
-	if (a.length) a = a[0]
-	return _value(a)
-}
-function _value(a)
-{
-	if (!a) return ''
-	if (a.mainsnak) a = a.mainsnak
-	if (a.datatype == 'quantity')
-		return parseInt(a.datavalue.value.amount)
-	if (a.datatype == 'time')
-		return _t(a.datavalue.value.time)
-	if (a.datatype == 'wikibase-item')
-		return a.datavalue.value.id
-	return ''
-}
-function _t(x)
-{
-	let t = new Date(x.replace(/^\+/, ''))
-	return t.getFullYear()+'-'+_z(t.getMonth()+1)+'-'+_z(t.getDate())
-}
-function _z(x) { return x<10?'0'+x:x }
-
-
-
-function _rnd(from, to)
-{
-	if (!to) { to = from; from = 0; }
-	return Math.floor(Math.random() * (to - from) + from)
-}
-async function wikidata(Q)
-{
-	if (!Q) return {}
-	let st = localStorage.getItem(Q)
-	let a; try { a = JSON.parse(st) } catch(e){}
-	if (!a) a = {}
-	else
-	if (new Date().getTime() - a.timestamp < _rnd(4,100)*3600*1000) // в кеше от 4 до 100 часов
-		return a
-	_loading()
-
-	a = await wikidata_search(Q)
-	a.timestamp = new Date().getTime()
-	{ // почистим ненужные языки, чтобы уменьшить объект
-		let k, i
-		if (a[k='labels'])       for (i in a[k]) if (!['ru','en','fr'].includes(i)) delete a[k][i]
-		if (a[k='descriptions']) for (i in a[k]) if (!['ru','en','fr'].includes(i)) delete a[k][i]
-		if (a[k='sitelinks'])    for (i in a[k]) if (!['ruwiki','enwiki','frwiki'].includes(i)) delete a[k][i]
-		delete a.aliases
-	}
-	try {
-		localStorage.setItem(Q, JSON.stringify(a))
-	} catch(e) {
-		if (e.name != 'QuotaExceededError') throw e
-		// пробуем удалить старые записи
-		let a = []
-		for (let i = 0; i < localStorage.length; i++)
-		{
-			const Q = localStorage.key(i)
-			const _ = JSON.parse(localStorage.getItem(Q)) || {}
-			a.push({Q, timestamp: _.timestamp||0})
-		}
-		a.sort((x,y)=>x.timestamp-y.timestamp)
-		const deleted = []
-		for (let i = 0; i < 20 && i < a.length; i++) // удаляем 20 старых записей
-		{
-			localStorage.removeItem(a[i].Q)
-			deleted.push(a[i].Q)
-		}
-		console.log('localStorage: REMOVE '+deleted.join(', '))
-	}
-	return a
-}
-
-async function wikidata_search(Q)
-{
-	return fetch('https://www.wikidata.org/wiki/Special:EntityData/'+Q+'.json')
-		.then(_=>_.json()).then(_=>_.entities[Q])
-}
-
-function _wd(Q) { return !Q?'':'<sup><a href="https://www.wikidata.org/wiki/'+Q+'">[wd]</a></sup>'; }
-function _label(a)
-{
-	if (!a.labels) return ''
-	let x = 'ru'
-	if (!a.labels[x]) x = 'en'
-	return a.labels[x].value||''
-}
-function _sitelink(a)
-{
-	if (!a.sitelinks) return ''
-	let x = 'ruwiki'
-	if (!a.sitelinks[x]) x = 'enwiki'
-	if (!a.sitelinks[x]) x = 'frwiki'
-	return a.sitelinks[x] ? a.sitelinks[x].url : ''
 }
