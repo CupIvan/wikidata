@@ -8,7 +8,6 @@ function _header()
 		+'localStorage.clear(); console.log(\'localStorage: CLEAR\'); return false'
 		+'">очистить localStorage ('+localStorage.length+')</a></small>'
 }
-function _loading() { if (!_loading.ck) _loading.ck=1; document.body.innerHTML = _header()+'<br>Загрузка данных... '+(_loading.ck++) }
 function _error(e){ console.error(e); return _header()+'<br>Ошибка :-( '+e; }
 
 function onHashChanged()
@@ -25,123 +24,62 @@ function loadMain() { document.body.innerHTML = document.body.restore }
 
 async function loadTournament(Q)
 {
-	let st = '', _
-try {
-	let a = await wikidata(Q)
+	const page = new Section()
 
-	st += _header()
-	st += '<h1><a href="'+_sitelink(a)+'">'+_label(a)+'</a>'+_wd(Q)+'</h1>'
-	_ = await getCompetitions(a.claims['P527']) // состоит из
-	st += '<ol>'
-	for (let i=0; i<_.length; i++)
-		st += '<li><a href="#?competition='+_[i].id+'">'+_label(_[i])+'</a>'
-	st += '</ol>'
-} catch(e){ st = _error(e) }
-	document.body.innerHTML = st
+	page.replace(document.body)
+	page.append(_header)
+
+	wikidata(Q).then(a=>{
+		page.append('<h1><a href="'+_sitelink(a)+'">'+_label(a)+'</a>'+_wd(Q)+'</h1>')
+		page.append(getCompetitions(a.claims['P527']).then(drawCompetitions))
+	})
 }
-async function getCompetitions(a)
+
+function Section()
 {
-	let res = []
-	if (!a) return res
-	for (let i=0; i<a.length; i++)
-	{
-		let _ = await wikidata(a[i].mainsnak.datavalue.value.id)
-		_.label = _label(_)
-		res.push(_)
+	const el = document.createElement('section')
+	this.replace = function(parent) {
+		if (!parent) return false
+		parent.innerHTML = ''
+		parent.append(el)
 	}
-	// сортируем по названию
-	res.sort((a,b)=>a.label.localeCompare(b.label))
-	return res
+	this.append = function(st) {
+		let div = document.createElement('div')
+		if (typeof(st) == 'function') st = st()
+		if (typeof(st) == 'string') div.innerHTML = st
+		if (typeof(st) == 'object' && st.then)
+			st.then(_ => { div.innerHTML = _ })
+		el.appendChild(div)
+		return st
+	}
+	return this
 }
 
 async function loadCompetition(Q)
 {
-	let st = '', _, year
-try {
-	let a = await wikidata(Q)
+	const page = new Section()
 
-	st += _header()
-	st += await getNavPrevNext(a)
-	st += '<h1><a href="'+_sitelink(a)+'">'+_label(a)+'</a>'+_wd(Q)+'</h1>'
+	page.replace(document.body)
+	page.append(_header)
 
-	st += '<h3>Турнирная таблица</h3>'
-	_ = await getTeams(a.claims['P1923']) // команды-участницы
-	st += '<table class="t">'
-	st += '<tr><th>Поз<th>Команда<th>И<th>В<th>Н<th>П<th>МЗ<th>МП<th>РМ<th>О'
-	for (let i=0,w,d,g,s; i<_.length; i++)
-	{
-		st += '<tr>'
-		st += '<td class="r">'+_P(1352, _[i]) // position
-		st += '<td><a href="'+_sitelink(_[i].entity)+'">'+_label(_[i].entity)+'</a>'+_wd(_[i].entity.id)
-		st += '<td class="c">'+_P(1350, _[i]) // total
-		st += '<td class="c">'+(w=_P(1355, _[i])) // wins
-		st += '<td class="c">'+(d=_P(1357, _[i])) // draws
-		st += '<td class="c">'+_P(1356, _[i]) // fails
-		st += '<td class="c">'+(g=_P(1351, _[i])) // goals
-		st += '<td class="c">'+(s=_P(1359, _[i])) // skips
-		st += '<td class="r">'+(g-s>0?'+'+(g-s):g-s) // delta
-		st += '<td class="c">'+(w*3+d) // points
-	}
-	st += '</table>'
+	wikidata(Q).then(a=>{
+		page.append(drawNavPrevNext(a))
+		page.append('<h1><a href="'+_sitelink(a)+'">'+_label(a)+'</a>'+_wd(Q)+'</h1>')
 
-	_ = await getMatches(a.claims['P527']) // состоит из
+		page.append('<h3>Турнирная таблица</h3>')
+		page.append(getTeams(a.claims['P1923']).then(drawTeamResults))
 
-	if (_.crosstable)
-	{
-		st += '<h3>Шахматка игр</h3>'
-		st += '<table class="t">'
-		st += '<tr><th>Дома \\ На выезде<th>И<th>В<th>Н<th>П<th>МЗ<th>МП<th>РМ<th>О<th>Поз'
-		for (let i=0; i<_.results.length; i++)
-			st += '<th>'+_.results[i].position
-		for (let i=0; i<_.results.length; i++)
-		{
-			let Q1 = _.results[i].Q, team = await wikidata(Q1)
-			st += '<tr>'
-			st += '<td><a href="'+_sitelink(team)+'">'+_label(team)+'</a>'+_wd(Q1)
-			st += '<td>'+_.results[i].total
-			st += '<td>'+_.results[i].wins
-			st += '<td>'+_.results[i].draws
-			st += '<td>'+_.results[i].fails
-			st += '<td>'+_.results[i].goals
-			st += '<td>'+_.results[i].skips
-			st += '<td>'+_.results[i].delta
-			st += '<td>'+_.results[i].points
-			st += '<th>'+_.results[i].position
-			for (let j=0; j<_.results.length; j++)
-			if (i == j)
-				st += '<td>—'
-			else
-			{
-				let Q2 = _.results[j].Q
-				const a = _.crosstable[Q1][Q2].score.split(':')
-				let cl = 'yellow'
-				if (a[0]>a[1]) cl = 'green'
-				if (a[0]<a[1]) cl = 'red'
-				st += '<td class="'+cl+'">'+a.join(':')
-			}
-		}
-		st += '</table>'
-	}
+		page.append('<h3>Шахматка игр</h3>')
+		page.append(getMatches(a.claims['P527']).then(drawCrossTable))
 
-	st += '<h3>Сыгранные матчи</h3>'
-	st += '<table class="t">'
-	st += '<tr><th>Дата<th>Команды<th>Счёт'
-	for (let i=0; i<_.length; i++)
-	{
-		st += '<tr>'
-		st += '<td>'+_P(585, _[i])+_wd(_[i].id)
-		st += '<td>'+_[i].labels.ru.value
-		st += '<td class="c">'+_[i].score
-	}
-	st += '</table>'
+		page.append('<h3>Сыгранные матчи</h3>')
+		page.append(getMatches(a.claims['P527']).then(drawMatches))
+	})
 
-	if (_[0])  year = _P(585, _[0]).replace(/-.+/, '')
-	if (!year) year = _label(a).replace(/.*?(\d+).*/, '$1')
-
-} catch(e){ st = _error(e) }
-	document.body.innerHTML = st
-	_append(section_transfermarkt(year))
+//	if (_[0])  year = _P(585, _[0]).replace(/-.+/, '')
+//	if (!year) year = _label(a).replace(/.*?(\d+).*~~~~~~~/, '$1')
 }
+
 function _append(x)
 {
 	const section = document.createElement('section')
@@ -150,155 +88,15 @@ function _append(x)
 	else section.appendChild(x)
 	document.body.appendChild(section)
 }
-function section_transfermarkt(year)
+function Observer(fnc)
 {
-	let st='', el = document.createElement('div')
-	st += '<h3>transfermarkt.com</h3>'
-	let url = 'https://www.transfermarkt.com/premier-liga/gesamtspielplan/wettbewerb/RU1?saison_id='+year
-	st += '<input type="search" value="'+url+'" style="width: 800px;">'
-	st += '<input type="button" value="Загрузить">'
-	st += '<br><textarea style="width: 900px; height: 300px"></textarea>'
-	el.innerHTML = st
-	el.querySelector('input[type=button]').onclick = _=>{
-		fetch(el.querySelector('input[type=search]').value)
-		.then(_=>_.text()).then(html=>{
-			let a = html.split('class="box">')
-			let st = ''
-			for (let i=1; i<a.length; i++)
-			{
-				let j, _ = parseBox(a[i])
-				for (j=0; j<_.length; j++)
-				st += _.matchDay
-					+ '\t' + _[j].date
-					+ '\t' + _[j].time
-					+ '\t' + _[j].team1Id
-					+ '\t' + _[j].team2Id
-					+ '\t' +_[j].score
-					+ '\t' +_[j].team1Name+' - '+_[j].team2Name
-					+ '\n'
-			}
-			el.querySelector('textarea').value = st
-		})
-	}
-	return el
-}
-function parseBox(html)
-{
-	const res = []
-	const el = document.createElement('div')
-	el.innerHTML = html
-	const tr = el.querySelectorAll('tr')
-
-	try {
-	if (re = /(\d+).Matchday/.exec(el.querySelector('.content-box-headline').innerHTML))
-		res.matchDay = parseInt(re[1])
-	} catch(e) {}
-
-	let date = '', time = ''
-	for (let i=0; i<tr.length; i++)
-	if (tr[i].className != 'bg_blau_20')
-	try
-	{
-		let re, a = {}
-		let td = tr[i].querySelectorAll('td')
-		if (re = /(\d{4})-(\d{2})-(\d{2})/.exec(td[0].innerHTML)) a.date = re[0]
-		if (re = /(\d+):(\d+)/.exec(td[1].innerHTML)) { if (td[1].innerHTML.indexOf('PM')!=-1) re[1]=parseInt(re[1])+12; a.time = re[1]+':'+re[2] }
-		if (re = /verein\/(\d+)/.exec(td[2].innerHTML))  a.team1Id   = re[1]
-		if (re = /title="([^"]+)/.exec(td[2].innerHTML)) a.team1Name = re[1]
-		if (re = /\d+:\d+/.exec(td[4].innerText))        a.score     = re[0]
-		if (re = /verein\/(\d+)/.exec(td[6].innerHTML))  a.team2Id   = re[1]
-		if (re = /title="([^"]+)/.exec(td[6].innerHTML)) a.team2Name = re[1]
-		if (!a.date) a.date = date; else date = a.date
-		if (!a.time) a.time = time; else time = a.time
-		res.push(a)
-	}
-	catch(e) {}
-
-	return res
-}
-async function getNavPrevNext(a)
-{
-	let st = ''
-	let entity = await wikidata(_P(3450, a)) // parent
-	st += '<h2><a href="#?tournament='+entity.id+'">'+_label(entity)+'</a>'+_wd(entity.id)+'</h2>'
-	st += '<ul>'
-	entity = await wikidata(_P(155, a.claims['P3450'][0]))
-	st += '<li><a href="#?competition='+entity.id+'">'+(_label(entity)||'предыдущий не заполнен')+'</a>'+_wd(entity.id)
-	entity = await wikidata(_P(156, a.claims['P3450'][0]))
-	st += '<li><a href="#?competition='+entity.id+'">'+(_label(entity)||'следующий не заполнен')+'</a>'+_wd(entity.id)
-	st += '</ul>'
-	return st
-}
-async function getTeams(a)
-{
-	let res = []
-	if (!a) return res
-	for (let i=0; i<a.length; i++)
-	{
-		a[i].entity = await wikidata(a[i].mainsnak.datavalue.value.id)
-		a[i].label  = _label(a[i].entity)
-		let x = 'ru'
-		res.push(a[i])
-	}
-	// сортируем по названию
-	res.sort((a,b)=>{
-		a.label.localeCompare(b.label)
-	})
-	return res
-}
-async function getMatches(a)
-{
-	let res = []; res.crosstable = {}; res.results = {}
-
-	function add(_)
-	{
-		let t1=0, t2=1, teams = _.claims['P1923']
-		if (!teams) return
-		if (_P(3831, teams[0]) == 'Q24633216') { t1=1; t2=0 }
-		let s = [_P(1351, teams[t1]), _P(1351, teams[t2])]
-		_.score = s.join(':')
-		_.date = _P(585, _)
-		res.push(_)
-
-		t1 = _value(teams[t1])
-		t2 = _value(teams[t2])
-		if (!res.crosstable[t1]) res.crosstable[t1] = {}
-		res.crosstable[t1][t2] = {score: _.score, date: _.date}
-
-		if (!res.results[t1]) res.results[t1]={total:0, wins:0, draws:0, fails:0, goals:0, skips:0}
-		if (!res.results[t2]) res.results[t2]={total:0, wins:0, draws:0, fails:0, goals:0, skips:0}
-		res.results[t1].total++
-		res.results[t2].total++
-		res.results[t1].goals += s[0]; res.results[t2].skips += s[0]
-		res.results[t2].goals += s[1]; res.results[t1].skips += s[1]
-		if (s[0] > s[1]) { res.results[t1].wins++;  res.results[t2].fails++; }
-		if (s[0] < s[1]) { res.results[t1].fails++; res.results[t2].wins++;  }
-		if (s[0] ==s[1]) { res.results[t1].draws++; res.results[t2].draws++; }
-	}
-
-	if (!a) return res
-	for (let i=0; i<a.length; i++)
-	{
-		let _ = await wikidata(_value(a[i]))
-		if (_P(31, _) == 'Q58092637') // тур группового этапа
-			for (let j=0, b=_PP('527', _); j<b.length; j++)
-				add(await wikidata(b[j]))
-		else // Q133729849 - футбольный матч
-			add(_)
-	}
-
-	// сортируем по дате
-	res.sort((a,b)=>a.date.localeCompare(b.date))
-	// сортируем результаты
-	let Q, x, y, _ = []
-	for (Q in res.results)
-	_.push({...res.results[Q], Q,
-		points: x=res.results[Q].wins * 3 + res.results[Q].draws,
-		delta:  y=res.results[Q].goals - res.results[Q].skips,
-		sort:   x * 10000 + y,
-	})
-	_.sort((a,b)=>b.sort-a.sort)
-	for (let i=0;i<_.length;i++) _[i].position = i+1
-	res.results = _
-	return res
+	this.then = (obj2st) => { return {then: async _=> {
+		const handler = async (a) => {
+			let res = obj2st(a)
+			if (res.then) return _(await res)
+			return _(res)
+		}
+		fnc(handler)
+	} } }
+	return this
 }

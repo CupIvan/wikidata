@@ -49,7 +49,6 @@ async function wikidata(Q)
 	else
 	if ((new Date().getTime() - a.timestamp) < _rnd(1,30)*24*3600*1000) // в кеше от 1 до 30 дней
 		return a
-	_loading()
 
 	a = await wikidata_search(Q)
 	a.timestamp = new Date().getTime()
