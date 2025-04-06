@@ -24,6 +24,7 @@ function _value(a)
 		return _t(a.datavalue.value.time)
 	if (a.datatype == 'wikibase-item')
 		return a.datavalue.value.id
+	try { if (a.entity.type == 'uri') return a.entity.value.replace(/.+\/Q/, 'Q') } catch(e) {}
 	return ''
 }
 function _t(x)
@@ -89,13 +90,20 @@ async function wikidata_search(Q)
 		.then(_=>_.json()).then(_=>_.entities[Q])
 }
 
+async function wikidata_search_pv(P, v)
+{
+	if (v[0] == 'Q') v = 'wd:'+v; else v = '"'+v+'"'
+	const WQS = 'SELECT ?entity WHERE { ?entity wdt:'+P+' '+v+'}'
+	return fetch('https://query.wikidata.org/sparql?format=json&query='+encodeURIComponent(WQS))
+		.then(_=>_.json()).then(_=>_.results.bindings)
+}
+
 function _wd(Q) { return !Q?'':'<sup><a href="https://www.wikidata.org/wiki/'+Q+'">[wd]</a></sup>'; }
-function _label(a)
+function _label(a, lang='ru')
 {
 	if (!a.labels) return ''
-	let x = 'ru'
-	if (!a.labels[x]) x = 'en'
-	return a.labels[x].value||''
+	if (!a.labels[lang]) lang = 'en'
+	return a.labels[lang].value||''
 }
 function _sitelink(a)
 {

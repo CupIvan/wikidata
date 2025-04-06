@@ -31,7 +31,25 @@ async function loadTournament(Q)
 
 	wikidata(Q).then(a=>{
 		page.append('<h1><a href="'+_sitelink(a)+'">'+_label(a)+'</a>'+_wd(Q)+'</h1>')
+		page.append('<button onclick="searchCompetitions(\''+Q+'\')" title="Найти в wikidata соренования привязанные к чемпионату">Заполнить через QS</button>')
 		page.append(getCompetitions(a.claims['P527']).then(drawCompetitions))
+	})
+}
+
+function searchCompetitions(Q)
+{
+	wikidata_search_pv('P3450', Q).then(async a=>{
+		let b = []
+		for (let i=0; i<a.length; i++)
+		{
+			const entity = await wikidata(_value(a[i]))
+			b.push({id: entity.id, label: _label(entity, 'en')})
+		}
+		b.sort((x,y)=>x.label.localeCompare(y.label))
+		let st = ''
+		for (let i=0; i<b.length; i++)
+			st += Q+"\tP527\t"+b[i].id+"\n"
+		sendToQuickStatements(st)
 	})
 }
 
@@ -99,4 +117,12 @@ function Observer(fnc)
 		fnc(handler)
 	} } }
 	return this
+}
+
+function sendToQuickStatements(st)
+{
+	let url = 'https://quickstatements.toolforge.org/#v1='+st
+	url = url.replace(/\t/g, '|')
+	url = url.replace(/\n/g, '||')
+	document.location = url
 }
