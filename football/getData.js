@@ -98,7 +98,8 @@ function getCompetitions(a)
 	{
 		let _ = await wikidata(_value(a[i]))
 		_.label     = _label(_)
-		_.dateStart = _P('P580', _)
+		_.dateStart = _P(580, _)
+		if (!_.dateStart) _.dateStart = ''+parseInt(_label(_, 'en'))
 		res.push(_)
 		handler(res)
 	}

@@ -3,6 +3,7 @@ function _PP(P, a)
 	if (!a) return ''
 	if (a.qualifiers) a = a.qualifiers
 	if (a.claims) a = a.claims
+	if ((''+P)[0] == 'P') P = P.substring(1)
 	if (!a['P'+P]) return ''
 	a = a['P'+P]
 	let res = []
