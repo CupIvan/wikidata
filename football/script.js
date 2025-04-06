@@ -38,7 +38,7 @@ async function loadTournament(Q)
 
 function searchCompetitions(Q)
 {
-	wikidata_search_pv('P3450', Q).then(async a=>{
+	wikidata_search_pv({'P31|P31/P279': 'Q27020041', P3450: Q}).then(async a=>{
 		let b = []
 		for (let i=0; i<a.length; i++)
 		{

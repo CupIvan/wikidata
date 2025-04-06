@@ -97,12 +97,12 @@ function getCompetitions(a)
 	for (let i=0; i<a.length; i++)
 	{
 		let _ = await wikidata(_value(a[i]))
-		_.label = _label(_)
+		_.label     = _label(_)
+		_.dateStart = _P('P580', _)
 		res.push(_)
 		handler(res)
 	}
-	// сортируем по названию
-	res.sort((a,b)=>a.label.localeCompare(b.label))
+	res.sort((a,b)=>a.dateStart.localeCompare(b.dateStart))
 	handler(res)
 
 	})

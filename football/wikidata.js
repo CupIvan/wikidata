@@ -90,10 +90,15 @@ async function wikidata_search(Q)
 		.then(_=>_.json()).then(_=>_.entities[Q])
 }
 
-async function wikidata_search_pv(P, v)
+async function wikidata_search_pv(a)
 {
-	if (v[0] == 'Q') v = 'wd:'+v; else v = '"'+v+'"'
-	const WQS = 'SELECT ?entity WHERE { ?entity wdt:'+P+' '+v+'}'
+	let P, WQS = 'SELECT ?entity WHERE {'
+	for (P in a) {
+		let v = a[P]
+		if (v[0] == 'Q') v = 'wd:'+v; else v = '"'+v+'"'
+		WQS += '?entity '+P.replace(/(P\d+)/g, 'wdt:$1')+' '+v+'. '
+	}
+	WQS += '}'
 	return fetch('https://query.wikidata.org/sparql?format=json&query='+encodeURIComponent(WQS))
 		.then(_=>_.json()).then(_=>_.results.bindings)
 }
