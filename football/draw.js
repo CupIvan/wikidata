@@ -100,9 +100,18 @@ async function drawNavPrevNext(a)
 async function drawCompetitions(_)
 {
 	let st = ''
-	st += '<ol>'
+	st += '<table calss="t">'
 	for (let i=0; i<_.length; i++)
-		st += '<li><a href="#?competition='+_[i].id+'">'+_label(_[i])+'</a>'
-	st += '</ol>'
+	{
+		const nav  = _[i].claims['P3450'] // розыгрыш какого турнира
+		const prev = _P(155, nav)
+		const next = _P(156, nav)
+		st += '<tr>'
+		+'<td>'+(i+1)
+		+'<td><a href="#?competition='+_[i].id+'">'+_label(_[i])+'</a>'+_wd(_[i])
+		+'<td'+(prev?'':' class="red"')+'><a href="#?competition='+prev+'">←</a>'
+		+'<td'+(next?'':' class="red"')+'><a href="#?competition='+next+'">→</a>'
+	}
+	st += '</table>'
 	return st
 }

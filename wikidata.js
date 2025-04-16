@@ -1,6 +1,7 @@
 function _PP(P, a)
 {
 	if (!a) return ''
+	if (a.length) a = a[0]
 	if (a.qualifiers) a = a.qualifiers
 	if (a.claims) a = a.claims
 	if ((''+P)[0] == 'P') P = P.substring(1)
@@ -22,7 +23,7 @@ function _value(a)
 	if (a.datatype == 'quantity')
 		return parseInt(a.datavalue.value.amount)
 	if (a.datatype == 'time')
-		return _t(a.datavalue.value.time)
+		return a.datavalue ? _t(a.datavalue.value.time) : ''
 	if (a.datatype == 'wikibase-item')
 		return a.datavalue.value.id
 	try { if (a.entity.type == 'uri') return a.entity.value.replace(/.+\/Q/, 'Q') } catch(e) {}
@@ -30,7 +31,9 @@ function _value(a)
 }
 function _t(x)
 {
+	x = x.replace('-00-00', '-01-01')
 	let t = new Date(x.replace(/^\+/, ''))
+	if (!t) return ''
 	return t.getFullYear()+'-'+_z(t.getMonth()+1)+'-'+_z(t.getDate())
 }
 function _z(x) { return x<10?'0'+x:x }
@@ -56,7 +59,7 @@ async function wikidata(Q)
 	a.timestamp = new Date().getTime()
 	{ // почистим ненужные языки, чтобы уменьшить объект
 		let k, i
-		if (a[k='labels'])       for (i in a[k]) if (!['ru','en','fr'].includes(i)) delete a[k][i]
+		if (a[k='labels'])       for (i in a[k]) if (!['ru','en','fr','mul'].includes(i)) delete a[k][i]
 		if (a[k='descriptions']) for (i in a[k]) if (!['ru','en','fr'].includes(i)) delete a[k][i]
 		if (a[k='sitelinks'])    for (i in a[k]) if (!['ruwiki','enwiki','frwiki'].includes(i)) delete a[k][i]
 		delete a.aliases
@@ -104,10 +107,12 @@ async function wikidata_search_pv(a)
 		.then(_=>_.json()).then(_=>_.results.bindings)
 }
 
-function _wd(Q) { return !Q?'':'<sup><a href="https://www.wikidata.org/wiki/'+Q+'">[wd]</a></sup>'; }
+function _wd(Q) { if (typeof(Q)=='object')Q=Q.id; return !Q?'':'<sup><a href="https://www.wikidata.org/wiki/'+Q+'">[wd]</a></sup>'; }
 function _label(a, lang='ru')
 {
+	if (!a) return ''
 	if (!a.labels) return ''
+	if (!a.labels[lang]) lang = 'mul'
 	if (!a.labels[lang]) lang = 'en'
 	return a.labels[lang].value||''
 }
