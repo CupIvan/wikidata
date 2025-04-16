@@ -31,7 +31,10 @@ async function loadTournament(Q)
 
 	wikidata(Q).then(a=>{
 		page.append('<h1><a href="'+_sitelink(a)+'">'+_label(a)+'</a>'+_wd(Q)+'</h1>')
-		page.append('<button onclick="searchCompetitions(\''+Q+'\')" title="Найти в wikidata соренования привязанные к чемпионату">Заполнить через QS</button>')
+		page.append(''
+			+'<button onclick="searchCompetitions(\''+Q+'\')" title="Найти в wikidata соренования привязанные к чемпионату">Заполнить список</button>'
+			+'<button onclick="fixNavigation(\''+Q+'\')" title="Исправить ссылки на предыдущий/следующий чемпионаты">Исправить линковку</button>'
+		)
 		page.append(getCompetitions(a.claims['P527']).then(drawCompetitions))
 	})
 }
@@ -53,24 +56,19 @@ function searchCompetitions(Q)
 	})
 }
 
-function Section()
+function fixNavigation(Q)
 {
-	const el = document.createElement('section')
-	this.replace = function(parent) {
-		if (!parent) return false
-		parent.innerHTML = ''
-		parent.append(el)
+	let st = '', a = g_data.competitions
+	for (let i=0; i<a.length; i++)
+	{
+		st += a[i].id+"\tP3450\t"+Q
+		if (i!==0)
+		st += "\tP155\t"+a[i-1].id
+		if (i!==a.length-1)
+		st += "\tP156\t"+a[i+1].id
+		st += "\n"
 	}
-	this.append = function(st) {
-		let div = document.createElement('div')
-		if (typeof(st) == 'function') st = st()
-		if (typeof(st) == 'string') div.innerHTML = st
-		if (typeof(st) == 'object' && st.then)
-			st.then(_ => { div.innerHTML = _ })
-		el.appendChild(div)
-		return st
-	}
-	return this
+	sendToQuickStatements(st)
 }
 
 async function loadCompetition(Q)
@@ -96,33 +94,4 @@ async function loadCompetition(Q)
 
 //	if (_[0])  year = _P(585, _[0]).replace(/-.+/, '')
 //	if (!year) year = _label(a).replace(/.*?(\d+).*~~~~~~~/, '$1')
-}
-
-function _append(x)
-{
-	const section = document.createElement('section')
-	if (typeof(x) == 'function') x = x()
-	if (typeof(x) == 'string') section.innerHTML = x
-	else section.appendChild(x)
-	document.body.appendChild(section)
-}
-function Observer(fnc)
-{
-	this.then = (obj2st) => { return {then: async _=> {
-		const handler = async (a) => {
-			let res = obj2st(a)
-			if (res.then) return _(await res)
-			return _(res)
-		}
-		fnc(handler)
-	} } }
-	return this
-}
-
-function sendToQuickStatements(st)
-{
-	let url = 'https://quickstatements.toolforge.org/#v1='+st
-	url = url.replace(/\t/g, '|')
-	url = url.replace(/\n/g, '||')
-	document.location = url
 }

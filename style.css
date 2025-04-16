@@ -35,7 +35,7 @@ nav>a.active { border: 1px solid #00F; color: #00F; }
 
 a[href^='#'] { border-bottom: 1px dashed #00F; color: #00F; text-decoration: none; }
 
-button { margin: 10px 0; }
+button { margin: 10px 10px 10px 0; }
 
 table.tree { border: 0; text-align: center; }
 table.tree th,

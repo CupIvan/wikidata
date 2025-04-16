@@ -1,3 +1,5 @@
+const g_data = {}
+
 function getTeams(a)
 {
 	return new Observer(async (handler) => {
@@ -101,9 +103,11 @@ function getCompetitions(a)
 		_.dateStart = _P(580, _)
 		if (!_.dateStart) _.dateStart = ''+parseInt(_label(_, 'en'))
 		res.push(_)
+		g_data.competitions = res
 		handler(res)
 	}
 	res.sort((a,b)=>a.dateStart.localeCompare(b.dateStart))
+	g_data.competitions = res
 	handler(res)
 
 	})
