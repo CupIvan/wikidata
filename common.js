@@ -1,5 +1,5 @@
-window.addEventListener('load', _=>onHashChanged(document.body.restore = document.body.innerHTML))
-window.addEventListener('hashchange', onHashChanged)
+window.addEventListener('load', _=>_onHashChanged(document.body.restore = document.body.innerHTML))
+window.addEventListener('hashchange', _onHashChanged)
 
 function _header()
 {
@@ -10,11 +10,16 @@ function _header()
 }
 function _error(e){ console.error(e); return _header()+'<br>Ошибка :-( '+e; }
 
-function onHashChanged()
+function _onHashChanged()
 {
 	const hash = document.location.hash
-	let re
-	if (re = /person=(Q\d+)/.exec(hash))  return loadPerson(re[1])
+	let pcre = /([a-z][^=]+)=([^=&]+)/g, a = {}, is_hash = false
+	while (re = pcre.exec(hash))
+	{
+		a[re[1]] = re[2]
+		is_hash = true
+	}
+	if (is_hash) return onHashChanged(a)
 	loadMain()
 }
 

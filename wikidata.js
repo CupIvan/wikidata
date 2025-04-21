@@ -20,6 +20,8 @@ function _value(a)
 {
 	if (!a) return ''
 	if (a.mainsnak) a = a.mainsnak
+	if (a.datatype == 'string')
+		return a.datavalue.value
 	if (a.datatype == 'quantity')
 		return parseInt(a.datavalue.value.amount)
 	if (a.datatype == 'time')
@@ -62,7 +64,7 @@ async function wikidata(Q)
 		if (a[k='labels'])       for (i in a[k]) if (!['ru','en','fr','mul'].includes(i)) delete a[k][i]
 		if (a[k='descriptions']) for (i in a[k]) if (!['ru','en','fr'].includes(i)) delete a[k][i]
 		if (a[k='sitelinks'])    for (i in a[k]) if (!['ruwiki','enwiki','frwiki'].includes(i)) delete a[k][i]
-		delete a.aliases
+		if (a[k='aliases'])      for (i in a[k]) if (!['ru','en'].includes(i)) delete a[k][i]
 	}
 	try {
 		localStorage.setItem(Q, JSON.stringify(a))
@@ -108,6 +110,7 @@ async function wikidata_search_pv(a)
 }
 
 function _wd(Q) { if (typeof(Q)=='object')Q=Q.id; return !Q?'':'<sup><a href="https://www.wikidata.org/wiki/'+Q+'">[wd]</a></sup>'; }
+function _w(a)  { let url = _sitelink(a); return !url?'':'<sup><a href="'+url+'">[w]</a></sup>'; }
 function _label(a, lang='ru')
 {
 	if (!a) return ''
@@ -123,4 +126,15 @@ function _sitelink(a)
 	if (!a.sitelinks[x]) x = 'enwiki'
 	if (!a.sitelinks[x]) x = 'frwiki'
 	return a.sitelinks[x] ? a.sitelinks[x].url : ''
+}
+function _aliases(a, lang='ru')
+{
+	if (!a.aliases) return ''
+	if (!a.aliases[lang]) lang = 'en'
+	if (!a.aliases[lang]) lang = 'fr'
+	let res = []
+	if (a.aliases[lang])
+	for (let i=0; i<a.aliases[lang].length; i++)
+		res.push(a.aliases[lang][i].value)
+	return res
 }
