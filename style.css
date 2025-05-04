@@ -27,6 +27,7 @@ form { display: inline-block; float: left; clear: left; padding-bottom: 40px; }
 form textarea { width: 800px; height: 200px; font-size: 10px; }
 
 sup a { text-decoration: none; font-size: 80%; }
+.tree sup a { position: absolute; right: 2px; top: 0; }
 
 nav          { margin-bottom: 10px; }
 nav>a        { border: 1px solid #999; display: inline-block; padding: 5px 10px; text-decoration: none; color: #999; margin-right: 5px; }
@@ -37,12 +38,13 @@ a[href^='#'] { border-bottom: 1px dashed #00F; color: #00F; text-decoration: non
 
 button { margin: 10px 10px 10px 0; }
 
-table.tree { border: 0; text-align: center; }
+table.tree { border: 0; text-align: center; margin: auto; }
 table.tree th,
 table.tree td { border: 0px dotted #999; background: #FFF; min-width: 20px; }
-table.tree .person { border: 2px solid #000; padding: 10px 20px; padding-right: 10px; }
+table.tree .person { border: 2px solid #000; padding: 5px 10px; max-width: 150px; position: relative; height: 30px; }
 table.tree .bl { border-left:   1px solid #000; }
 table.tree .br { border-right:  1px solid #000; }
 table.tree .bb { border-bottom: 1px solid #000; }
+table.tree .bt { border-top:    1px solid #000; }
 table.tree tr:hover td { background: #FFF; }
 table.tree small { white-space: pre; }

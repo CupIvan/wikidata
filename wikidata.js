@@ -27,7 +27,7 @@ function _value(a)
 	if (a.datatype == 'time')
 		return a.datavalue ? _t(a.datavalue.value.time) : ''
 	if (a.datatype == 'wikibase-item')
-		return a.datavalue.value.id
+		return a.datavalue ? a.datavalue.value.id : undefined
 	try { if (a.entity.type == 'uri') return a.entity.value.replace(/.+\/Q/, 'Q') } catch(e) {}
 	return ''
 }
